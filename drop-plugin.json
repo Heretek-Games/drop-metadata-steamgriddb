@@ -1,0 +1,18 @@
+{
+  "id": "drop-metadata-steamgriddb",
+  "name": "SteamGridDB",
+  "version": "0.1.0",
+  "description": "SteamGridDB artwork and metadata provider plugin for Drop (#206).",
+  "author": "Heretek Games",
+  "apiVersion": 2,
+  "trust": "trusted",
+  "storageVersion": 1,
+  "capabilities": [
+    "metadata:provider",
+    "network"
+  ],
+  "targets": [
+    "server"
+  ],
+  "entry": "dist/src/index.js"
+}

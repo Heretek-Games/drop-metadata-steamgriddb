@@ -145,7 +145,7 @@ export class SteamGridDBProvider implements MetadataProvider {
       throw new Error(`SteamGridDB request failed with status ${response.status}`);
     }
     const payload = (await response.json()) as SgdbEnvelope<unknown> | undefined;
-    if (payload && payload.success === false) {
+    if (payload?.success === false) {
       throw new Error("SteamGridDB request was rejected");
     }
     return payload;

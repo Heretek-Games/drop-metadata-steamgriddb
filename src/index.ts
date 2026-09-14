@@ -10,43 +10,105 @@ export type HttpFetch = (input: string | URL, init?: RequestInit) => Promise<Res
 
 const API_BASE = "https://www.steamgriddb.com/api/v2";
 const API_KEY_ENV = "STEAMGRIDDB_API_KEY";
+const CONFIG_KEY = "config";
 
-interface RawRecord {
+export interface SteamGridDBConfig {
+  apiKey?: string;
+}
+
+interface SgdbEnvelope<T> {
+  success?: boolean;
+  data?: T;
+  errors?: string[];
+}
+
+export interface SgdbGame {
   id?: string | number;
   name?: string;
-  title?: string;
-  releaseYear?: number;
-  released?: string;
-  cover?: { url?: string };
-  coverUrl?: string;
-  bannerUrl?: string;
-  iconUrl?: string;
-  description?: string;
-  summary?: string;
+  release_date?: number;
+  types?: string[];
+  verified?: boolean;
 }
 
-/** Maps provider payloads (arrays under `data`, `results`, or bare) to results. */
+export interface SgdbImage {
+  id?: number;
+  url?: string;
+  thumb?: string;
+  style?: string[];
+  dimensions?: string;
+  mime?: string;
+}
+
+function extractData<T>(payload: unknown): T | undefined {
+  const envelope = payload as SgdbEnvelope<T> | undefined;
+  return envelope && typeof envelope === "object" ? envelope.data : undefined;
+}
+
+function yearFromUnix(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
+  const date = new Date(value * 1000);
+  const year = date.getUTCFullYear();
+  return Number.isFinite(year) ? year : undefined;
+}
+
 export function mapSearchResults(payload: unknown): MetadataSearchResult[] {
-  const container = payload as Record<string, unknown> | undefined;
-  const raw = (Array.isArray(payload)
-    ? payload
-    : (container?.data ?? container?.results ?? container?.games ?? [])) as RawRecord[];
-  return (Array.isArray(raw) ? raw : []).map((record) => ({
-    id: String(record.id ?? record.name ?? record.title ?? ""),
-    title: String(record.name ?? record.title ?? "Unknown"),
-    releaseYear: record.releaseYear ?? parseYear(record.released),
-    coverUrl: record.cover?.url ?? record.coverUrl,
-    bannerUrl: record.bannerUrl,
-    iconUrl: record.iconUrl,
-    description: record.description ?? record.summary,
-    provider: "steamgriddb",
-  }));
+  const data = extractData<SgdbGame[]>(payload);
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((game): game is SgdbGame => Boolean(game?.id !== undefined && game?.name))
+    .map((game) => ({
+      id: String(game.id),
+      title: String(game.name),
+      releaseYear: yearFromUnix(game.release_date),
+      provider: "steamgriddb",
+    }));
 }
 
-function parseYear(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const match = /\d{4}/.exec(value);
-  return match ? Number.parseInt(match[0], 10) : undefined;
+function imageUrls(payload: unknown): string[] {
+  const images = extractData<SgdbImage[]>(payload);
+  if (!Array.isArray(images)) return [];
+  return images
+    .map((image) => image?.url)
+    .filter((url): url is string => typeof url === "string" && url.length > 0);
+}
+
+export function mapGameDetails(
+  gamePayload: unknown,
+  gridsPayload: unknown,
+  heroesPayload: unknown,
+  logosPayload: unknown,
+): MetadataDetails | null {
+  const game = extractData<SgdbGame>(gamePayload);
+  if (!game?.id || !game.name) return null;
+
+  const grids = imageUrls(gridsPayload);
+  const heroes = imageUrls(heroesPayload);
+  const logos = imageUrls(logosPayload);
+
+  return {
+    id: String(game.id),
+    title: game.name,
+    releaseYear: yearFromUnix(game.release_date),
+    coverUrl: grids[0],
+    bannerUrl: heroes[0],
+    iconUrl: logos[0],
+    screenshots: grids,
+    provider: "steamgriddb",
+    metadata: {
+      types: game.types ?? [],
+      verified: Boolean(game.verified),
+    },
+  };
+}
+
+export function resolveApiKey(
+  config: SteamGridDBConfig | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  const stored = config?.apiKey?.trim();
+  if (stored) return stored;
+  const fromEnv = env[API_KEY_ENV]?.trim();
+  return fromEnv || undefined;
 }
 
 export class SteamGridDBProvider implements MetadataProvider {
@@ -59,17 +121,20 @@ export class SteamGridDBProvider implements MetadataProvider {
   ) {}
 
   async search(query: string): Promise<MetadataSearchResult[]> {
-    const url = new URL(`${API_BASE}/search/autocomplete/`);
-    url.searchParams.set("term", query);
+    const url = new URL(`${API_BASE}/search/autocomplete/${encodeURIComponent(query)}`);
     const payload = await this.request(url);
     return mapSearchResults(payload);
   }
 
   async getDetails(id: string): Promise<MetadataDetails | null> {
-    const url = new URL(`${API_BASE}/games/${id}/`.replace("${id}", id));
-    const payload = await this.request(url);
-    const results = mapSearchResults(payload);
-    return results[0] ? { ...results[0], screenshots: [] } : null;
+    const gameId = encodeURIComponent(id);
+    const [game, grids, heroes, logos] = await Promise.all([
+      this.request(new URL(`${API_BASE}/games/id/${gameId}`)),
+      this.request(new URL(`${API_BASE}/grids/game/${gameId}`)),
+      this.request(new URL(`${API_BASE}/heroes/game/${gameId}`)),
+      this.request(new URL(`${API_BASE}/logos/game/${gameId}`)),
+    ]);
+    return mapGameDetails(game, grids, heroes, logos);
   }
 
   private async request(url: URL): Promise<unknown> {
@@ -77,9 +142,13 @@ export class SteamGridDBProvider implements MetadataProvider {
     if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
     const response = await this.fetchFn(url.toString(), { headers });
     if (!response.ok) {
-      throw new Error(`SteamGridDB request failed: ${response.status}`);
+      throw new Error(`SteamGridDB request failed with status ${response.status}`);
     }
-    return response.json();
+    const payload = (await response.json()) as SgdbEnvelope<unknown> | undefined;
+    if (payload && payload.success === false) {
+      throw new Error("SteamGridDB request was rejected");
+    }
+    return payload;
   }
 }
 
@@ -93,12 +162,11 @@ export default class SteamGridDBPlugin implements ServerPlugin {
   };
 
   async init(ctx: PluginContext): Promise<void> {
-    const apiKey = process.env[API_KEY_ENV];
-    ctx.registerMetadataProvider(
-      new SteamGridDBProvider(apiKey, ctx.fetch.bind(ctx)),
-    );
+    const config = await ctx.storage.get<SteamGridDBConfig>(CONFIG_KEY);
+    const apiKey = resolveApiKey(config);
+    ctx.registerMetadataProvider(new SteamGridDBProvider(apiKey, ctx.fetch.bind(ctx)));
     ctx.logger.info(
-      `SteamGridDB metadata provider registered${apiKey ? "" : " (no API key configured)"}`,
+      `SteamGridDB metadata provider registered (API key ${apiKey ? "configured" : "not configured"})`,
     );
   }
 }

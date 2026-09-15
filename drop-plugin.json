@@ -14,5 +14,26 @@
   "targets": [
     "server"
   ],
-  "entry": "dist/src/index.js"
+  "entry": "dist/src/index.js",
+  "checksum": "4c457db2ce628666a8d503e9608c0982fa73160318a900b4bafafa9ba93d1223",
+  "files": {
+    ".github/dependabot.yml": "fe156952d1952825377de8e48c90563a3ac19bb95a6e0ced8a2f498a0f20fdf6",
+    ".github/workflows/ci.yml": "9dc3c27fde3aae22375d7b2e26ba5f3be55549aa2846389d77b797002917be77",
+    ".gitignore": "e8bc935ce727f1809c792f4c5d26c5fc75ba2b7df7fc9390c56c8892f6a6007f",
+    "AGENTS.md": "658ec78ff823680d9bfdac1d2b2936944e54358503caa001a43431349da20542",
+    "CLAUDE.md": "3b2c8a6a80fe79fa9ee0680b86d2e84ce0b9255d3dc43eccd4e2fce59064c7da",
+    "dist/src/index.d.ts": "e954492f55ae342e776ed3a733dd364675513873b46beb1143a3c01742dda600",
+    "dist/src/index.js": "4c457db2ce628666a8d503e9608c0982fa73160318a900b4bafafa9ba93d1223",
+    "dist/test/steamgriddb.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "dist/test/steamgriddb.test.js": "3279ac1860c15d9e0f2fc967702a772aa24589d8712e9ec88cf259d1b5b44477",
+    "eslint.config.mjs": "4cdf67d5a07b1a089d8f39e842a7de7532eb519752d60fe5ac706f42fb7bdc6f",
+    "GEMINI.md": "3b2c8a6a80fe79fa9ee0680b86d2e84ce0b9255d3dc43eccd4e2fce59064c7da",
+    "package-lock.json": "d0722ccc6d723fb396092192fe6c2a1b2f31730e450164d7af9e3307527fc2be",
+    "package.json": "79a6ba97d00f997043999e99d8d87d085b51e640d2ac994a3631158d609f1632",
+    "README.md": "fa3f80b9748186299144e6596a80dcf5c5fed76754bce779b11b229506985080",
+    "SECURITY.md": "1ed84c5e2293a1bda1e0d1650df39f5c03dba9a18ee6d8acff78cc10a6897d2d",
+    "src/index.ts": "b87a0120bb70068de5b9e953b441395474abfa93bc0b388b107b13391d99b258",
+    "test/steamgriddb.test.ts": "089e7e8f81c8295233ee8746780ea63529aeb4f7b616252a98ade03b27922c3d",
+    "tsconfig.json": "e67d6d62d5af3c653c4d1af30dea94d529c721708e54bd8609d748be627e79e5"
+  }
 }

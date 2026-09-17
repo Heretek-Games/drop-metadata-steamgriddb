@@ -81,7 +81,7 @@ async function createProviderContext(
   fixtures: Array<{ match: string; body: unknown; status?: number }>,
   config?: SteamGridDBConfig,
 ): Promise<{ ctx: MockPluginContext; calls: FetchCall[]; messages: string[] }> {
-  const ctx = new MockPluginContext("drop-metadata-steamgriddb", ["metadata:provider", "network"]);
+  const ctx = new MockPluginContext("drop-metadata-steamgriddb", ["metadata:provider", "storage", "network"]);
   const messages: string[] = [];
   ctx.logger = {
     info: (message: string) => messages.push(message),
